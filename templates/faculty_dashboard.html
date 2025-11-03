@@ -1,0 +1,42 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="flex items-center justify-between mb-4">
+  <h1 class="text-2xl font-semibold">Faculty Dashboard</h1>
+  <a href="/faculty/session/new" class="bg-blue-600 text-white px-3 py-2 rounded">New Session</a>
+</div>
+<div class="bg-white rounded shadow">
+  <table class="w-full">
+    <thead class="bg-gray-100">
+      <tr>
+        <th class="text-left p-2">ID</th>
+        <th class="text-left p-2">Name</th>
+        <th class="text-left p-2">Subject</th>
+        <th class="text-left p-2">Date</th>
+        <th class="text-left p-2">Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for s in sessions %}
+      <tr class="border-t">
+        <td class="p-2">{{ s[0] }}</td>
+        <td class="p-2">{{ s[1] }}</td>
+        <td class="p-2">{{ s[3] }}</td>
+        <td class="p-2">{{ s[2] }}</td>
+        <td class="p-2 space-x-2">
+          <a class="text-blue-600" href="/faculty/session/{{ s[0] }}">Open</a>
+          <a class="text-green-600" href="/faculty/scan/{{ s[0] }}">Scan</a>
+          <form method="post" action="/faculty/session/{{ s[0] }}/delete" class="inline" onsubmit="return confirm('Delete this class?');">
+            <button class="text-red-600">Delete</button>
+          </form>
+        </td>
+      </tr>
+      {% else %}
+      <tr><td class="p-3" colspan="5">No sessions yet.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+<div class="mt-6">
+  <a class="text-sm text-gray-700 underline" href="/faculty/students">Manage Students</a>
+</div>
+{% endblock %}

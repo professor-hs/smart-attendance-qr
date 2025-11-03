@@ -1,0 +1,42 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="flex items-center justify-between mb-4">
+  <h1 class="text-2xl font-semibold">Admin: Manage Classes</h1>
+  <form method="post" action="/admin/sessions/delete_all" onsubmit="return confirm('Delete ALL classes?');">
+    <button class="bg-red-600 hover:bg-red-700 text-white px-3 py-2 rounded">Delete All Classes</button>
+  </form>
+</div>
+<div class="bg-white rounded shadow">
+  <table class="w-full">
+    <thead class="bg-gray-100">
+      <tr>
+        <th class="text-left p-2">ID</th>
+        <th class="text-left p-2">Name</th>
+        <th class="text-left p-2">Subject</th>
+        <th class="text-left p-2">Date</th>
+        <th class="text-left p-2">Faculty</th>
+        <th class="text-left p-2">Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for s in sessions %}
+      <tr class="border-t">
+        <td class="p-2">{{ s[0] }}</td>
+        <td class="p-2">{{ s[1] }}</td>
+        <td class="p-2">{{ s[3] }}</td>
+        <td class="p-2">{{ s[2] }}</td>
+        <td class="p-2">{{ s[4] or '-' }}</td>
+        <td class="p-2">
+          <form method="post" action="/admin/sessions/{{ s[0] }}/reassign" class="flex items-center gap-2">
+            <input name="faculty_id" placeholder="New Faculty ID" class="border rounded px-2 py-1 text-sm">
+            <button class="border rounded px-2 py-1 text-sm">Reassign</button>
+          </form>
+        </td>
+      </tr>
+      {% else %}
+      <tr><td class="p-3" colspan="6">No classes.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

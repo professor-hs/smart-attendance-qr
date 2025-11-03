@@ -1,0 +1,31 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="flex items-center justify-between mb-4">
+  <h1 class="text-2xl font-semibold">Per-Subject Attendance</h1>
+  <a href="/student" class="text-sm underline">Back to Dashboard</a>
+</div>
+<div class="bg-white rounded shadow overflow-x-auto">
+  <table class="w-full">
+    <thead class="bg-gray-100">
+      <tr>
+        <th class="text-left p-2">Subject</th>
+        <th class="text-left p-2">Attended</th>
+        <th class="text-left p-2">Total</th>
+        <th class="text-left p-2">Percent</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for s in summaries %}
+      <tr class="border-t">
+        <td class="p-2">{{ s[0] }}</td>
+        <td class="p-2">{{ s[1] }}</td>
+        <td class="p-2">{{ s[2] }}</td>
+        <td class="p-2">{{ '%.1f' % s[3] }}%</td>
+      </tr>
+      {% else %}
+      <tr><td class="p-3" colspan="4">No subjects found.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

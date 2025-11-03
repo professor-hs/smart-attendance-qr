@@ -1,0 +1,87 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="flex items-center justify-between mb-4">
+  <h1 class="text-2xl font-semibold">Welcome, {{ user.name }}</h1>
+  <div class="flex items-center gap-3">
+    <span class="text-sm text-gray-600">Reg No: {{ user.roll }}</span>
+    <a href="/student/reset-password" class="inline-flex items-center gap-1 px-3 py-1.5 rounded bg-white border text-sky-700 hover:bg-sky-50">
+      <i data-lucide="key-round" class="h-4 w-4"></i>
+      <span class="text-sm">Reset Password</span>
+    </a>
+    <a href="/student/subjects" class="inline-flex items-center gap-1 px-3 py-1.5 rounded bg-white border text-green-700 hover:bg-green-50">
+      <i data-lucide="pie-chart" class="h-4 w-4"></i>
+      <span class="text-sm">Per-Subject</span>
+    </a>
+  </div>
+  </div>
+<div class="grid lg:grid-cols-3 gap-6">
+  <div class="bg-white/80 backdrop-blur p-5 rounded-2xl shadow border border-gray-200">
+    <div class="flex items-center gap-2 mb-3">
+      <i data-lucide="qr-code" class="h-5 w-5 text-sky-600"></i>
+      <h2 class="font-semibold">Your QR Code</h2>
+    </div>
+    <div class="flex items-center justify-center">
+      <img src="{{ url_for('qrcodes_static', filename=user.id + '.png') }}" alt="QR" class="w-64 h-64 object-contain border rounded-lg bg-white"/>
+    </div>
+    <p class="text-sm text-gray-600 mt-3">Show this to the faculty scanner to mark attendance.</p>
+  </div>
+  <div class="bg-white/80 backdrop-blur p-5 rounded-2xl shadow border border-gray-200 lg:col-span-2">
+    <div class="flex items-center gap-2 mb-3">
+      <i data-lucide="pie-chart" class="h-5 w-5 text-green-600"></i>
+      <h2 class="font-semibold">Attendance Summary</h2>
+    </div>
+    <div class="grid md:grid-cols-2 gap-4 items-center">
+      <div>
+        <canvas id="attChart" height="160"></canvas>
+      </div>
+      <div>
+        <div class="text-4xl font-semibold">{{ attended }}/{{ total }}</div>
+        <div class="text-gray-600">{{ '%.1f' % percentage }}% of sessions</div>
+        <div class="mt-4 flex gap-2 text-sm">
+          <span class="inline-flex items-center gap-1 px-2 py-1 rounded bg-green-100 text-green-800"><span class="h-2 w-2 rounded-full bg-green-500"></span> Present</span>
+          <span class="inline-flex items-center gap-1 px-2 py-1 rounded bg-red-100 text-red-800"><span class="h-2 w-2 rounded-full bg-red-500"></span> Absent</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+<div class="mt-6">
+  <div class="flex items-center gap-2 mb-3">
+    <i data-lucide="book" class="h-5 w-5 text-sky-600"></i>
+    <h2 class="font-semibold">Per-Subject Attendance</h2>
+  </div>
+  <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+    {% for s in summaries %}
+    <div class="bg-white/80 backdrop-blur p-4 rounded-xl shadow border border-gray-200">
+      <div class="text-sm text-gray-500 mb-1">Subject</div>
+      <div class="font-semibold mb-2">{{ s[0] }}</div>
+      <div class="flex items-center justify-between text-sm">
+        <div>Attended: <span class="font-medium text-green-700">{{ s[1] }}</span></div>
+        <div>Total: <span class="font-medium">{{ s[2] }}</span></div>
+      </div>
+      <div class="mt-2 text-sm">Percent: <span class="font-semibold">{{ '%.1f' % s[3] }}%</span></div>
+    </div>
+    {% else %}
+    <div class="text-sm text-gray-600">No subjects found.</div>
+    {% endfor %}
+  </div>
+</div>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+  const pct = {{ percentage | tojson }};
+  const present = {{ attended | tojson }};
+  const totalSessions = {{ total | tojson }};
+  const absent = Math.max(0, totalSessions - present);
+  const ctx = document.getElementById('attChart');
+  if (ctx) {
+    new Chart(ctx, {
+      type: 'doughnut',
+      data: {
+        labels: ['Present','Absent'],
+        datasets: [{ data: [present, absent], backgroundColor: ['#22c55e','#ef4444'] }]
+      },
+      options: { plugins: { legend: { position: 'bottom' } }, cutout: '65%' }
+    });
+  }
+</script>
+{% endblock %}

@@ -1,0 +1,8 @@
+opencv-python
+qrcode[pil]
+pillow
+Flask
+gspread
+google-auth
+reportlab
+gunicorn

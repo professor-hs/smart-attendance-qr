@@ -1,0 +1,20 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+
+# Virtual envs
+.venv/
+.venv-1/
+venv/
+
+# Local data
+attendance.db
+qrcodes/
+
+# OS/editor
+.DS_Store
+.vscode/
+
+# Env vars
+.env

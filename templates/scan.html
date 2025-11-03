@@ -1,0 +1,44 @@
+{% extends 'base.html' %}
+{% block content %}
+<h1 class="text-2xl font-semibold mb-4">Scan QR - Session #{{ sess[0] }} ({{ sess[1] }})</h1>
+<div class="grid md:grid-cols-2 gap-6">
+  <div class="bg-white p-4 rounded shadow">
+    <div id="reader" style="width: 360px"></div>
+    <p class="text-sm text-gray-600 mt-2">Camera will auto-detect QR codes. Ensure permissions are granted.</p>
+  </div>
+  <div class="bg-white p-4 rounded shadow">
+    <h2 class="font-semibold mb-2">Last scan</h2>
+    <div id="status" class="p-3 bg-gray-100 rounded text-sm">Waiting for scan...</div>
+  </div>
+</div>
+<script src="https://unpkg.com/html5-qrcode"></script>
+<script>
+  const sessionId = '{{ sess[0] }}';
+  const statusEl = document.getElementById('status');
+  function setStatus(msg, cls='') {
+    statusEl.className = 'p-3 rounded text-sm ' + cls;
+    statusEl.textContent = msg;
+  }
+  function onScanSuccess(decodedText) {
+    setStatus('Scanned: ' + decodedText.substring(0, 80) + '...', 'bg-yellow-100');
+    fetch('/api/scan_mark', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ payload: decodedText, session_id: sessionId })
+    }).then(r => r.json()).then(j => {
+      if (j.ok) {
+        setStatus('Marked ' + j.user_id + ' (marked=' + j.marked + ')', 'bg-green-100');
+      } else {
+        setStatus('Error: ' + (j.error || 'unknown'), 'bg-red-100');
+      }
+    }).catch(e => setStatus('Network error', 'bg-red-100'));
+  }
+  function onScanFailure(error) {
+    // ignore; library will keep scanning
+  }
+  const html5QrcodeScanner = new Html5QrcodeScanner(
+    'reader', { fps: 10, qrbox: 250 }, false);
+  html5QrcodeScanner.render(onScanSuccess, onScanFailure);
+</script>
+{% endblock %}
+
