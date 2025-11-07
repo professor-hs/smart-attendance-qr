@@ -4,7 +4,17 @@ from typing import Optional, List, Tuple
 DB_PATH = 'attendance.db'
 
 def get_conn():
-    return sqlite3.connect(DB_PATH)
+    conn = sqlite3.connect(DB_PATH, timeout=15, check_same_thread=False)
+    try:
+        cur = conn.cursor()
+        # Improve concurrency and reduce lock contention
+        cur.execute("PRAGMA journal_mode=WAL;")
+        cur.execute("PRAGMA busy_timeout=5000;")
+        cur.execute("PRAGMA synchronous=NORMAL;")
+        cur.close()
+    except Exception:
+        pass
+    return conn
 
 def init_db():
     conn = get_conn()
@@ -92,6 +102,8 @@ def init_db():
         seed_sample_data(cur)
     # Always ensure admin exists and set default passwords for students lacking one
     ensure_admin_and_defaults(cur)
+    # Ensure extended dataset: 7 faculties, 70 students, 7 subjects, enrollments and baseline sessions
+    ensure_extended_dataset(cur)
     conn.commit()
     conn.close()
 
@@ -429,3 +441,90 @@ def ensure_admin_and_defaults(cur):
     if missing:
         cur.execute("UPDATE users SET password_hash=? WHERE role='student' AND (password_hash IS NULL OR password_hash='')",
                     (generate_password_hash('pass123'),))
+
+def ensure_extended_dataset(cur):
+    """Ensure there are:
+    - 7 faculties (F001..F007), each with one subject
+    - 70 students (S001..S070) with rolls 23MID0281..23MID0350
+    - Each student enrolled in all 7 subjects under their respective faculty
+    - Baseline sessions per subject and some attendance marks for demo
+    Idempotent via INSERT OR IGNORE / ON CONFLICT DO NOTHING.
+    """
+    from werkzeug.security import generate_password_hash
+    # Define 7 subjects and faculty mapping
+    subjects = [
+        'Mathematics', 'Physics', 'Chemistry', 'Biology', 'English', 'Computer Science', 'History'
+    ]
+    faculties = [f"F{i:03d}" for i in range(1, 8)]
+    faculty_names = [
+        'Faculty 1','Faculty 2','Faculty 3','Faculty 4','Faculty 5','Faculty 6','Faculty 7'
+    ]
+
+    # Create faculties with password 'admin123'
+    for fid, fname in zip(faculties, faculty_names):
+        cur.execute('''
+            INSERT INTO users (id, name, roll, email, role, password_hash)
+            VALUES (?, ?, '', ?, 'faculty', ?)
+            ON CONFLICT(id) DO NOTHING
+        ''', (fid, fname, f"{fid.lower()}@example.com", generate_password_hash('admin123')))
+
+    # Ensure subjects table has 7 subjects
+    for s in subjects:
+        cur.execute('INSERT OR IGNORE INTO subjects (name) VALUES (?)', (s,))
+
+    # Create 70 students S001..S070 with rolls 23MID0281..23MID0350
+    # Keep consistent with any existing S001..S025; this will extend up to S070
+    for i, roll_num in enumerate(range(281, 351), start=1):
+        sid = f"S{i:03d}"
+        name = f"Student {i}"
+        roll = f"23MID{roll_num:04d}"
+        email = f"student{i}@example.com"
+        cur.execute('''
+            INSERT INTO users (id, name, roll, email, role, password_hash)
+            VALUES (?, ?, ?, ?, 'student', ?)
+            ON CONFLICT(id) DO NOTHING
+        ''', (sid, name, roll, email, generate_password_hash('pass123')))
+
+    # Map each subject to a faculty (1:1)
+    subj_fac = list(zip(subjects, faculties))
+
+    # Enroll every student into all 7 subjects under the mapped faculty
+    cur.execute("SELECT id FROM users WHERE role='student' ORDER BY id")
+    student_ids = [r[0] for r in cur.fetchall()]
+    for student_id in student_ids:
+        for subject, fid in subj_fac:
+            cur.execute('''
+                INSERT INTO enrollments (student_id, faculty_id, subject)
+                VALUES (?, ?, ?)
+                ON CONFLICT(student_id, faculty_id, subject) DO NOTHING
+            ''', (student_id, fid, subject))
+
+    # Create baseline sessions per subject (5 each) for totals
+    # Use existing helper list/count via direct SQL
+    for subject, fid in subj_fac:
+        # Count existing sessions for this mapping
+        cur.execute('SELECT COUNT(*) FROM sessions WHERE subject=? AND faculty_id=?', (subject, fid))
+        existing = cur.fetchone()[0]
+        to_create = max(0, 5 - existing)
+        for j in range(to_create):
+            cur.execute('INSERT INTO sessions (name, subject, faculty_id) VALUES (?, ?, ?)',
+                        (f"Class {existing + j + 1}", subject, fid))
+
+    # Mark some attendance for demonstration: for first 2 sessions of each subject, mark ~50% students
+    # Get session ids per subject/faculty
+    cur.execute('SELECT id, subject, faculty_id FROM sessions ORDER BY id')
+    sessions = cur.fetchall()
+    # Build quick map subject->session_ids
+    from collections import defaultdict
+    sess_map = defaultdict(list)
+    for sid, subj, fid in sessions:
+        sess_map[(subj, fid)].append(sid)
+    # For determinism, mark attendance for every other student in first 2 sessions per subject
+    for (subj, fid), sids in sess_map.items():
+        for sid in sids[:2]:
+            for idx, student_id in enumerate(student_ids):
+                if idx % 2 == 0:  # roughly 50%
+                    try:
+                        cur.execute('INSERT INTO session_attendance (session_id, user_id) VALUES (?, ?)', (sid, student_id))
+                    except sqlite3.IntegrityError:
+                        pass

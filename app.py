@@ -51,6 +51,14 @@ app.secret_key = os.environ.get('SECRET_KEY', 'dev-secret-change')
 # Ensure folders
 os.makedirs('qrcodes', exist_ok=True)
 
+# Initialize DB once per process (avoids repeated writes during login)
+@app.before_first_request
+def _setup_db_once():
+    try:
+        init_db()
+    except Exception:
+        pass
+
 
 def current_user():
     uid = session.get('user_id')
@@ -91,7 +99,6 @@ def index():
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
-    init_db()
     error = None
     if request.method == 'POST':
         user_identifier = request.form.get('user_id', '').strip()

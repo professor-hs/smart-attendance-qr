@@ -18,3 +18,7 @@ qrcodes/
 
 # Env vars
 .env
+ 
+# Logs
+*.log
+*_tunnel.log
